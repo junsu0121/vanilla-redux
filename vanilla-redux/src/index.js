@@ -1,61 +1,79 @@
-//* data를 수정할 수 있는 것 리듀서 뿐 => 따라서 밖에서 리듀서와 소통할려면 dispatch로 액션함수를 일으켜야함! =>액션을 일으키면 initialState의 값을 액션에 따라 변경하여
-// 리턴해줌! (고로 state를 전역에 뿌려줄 수 있음!)
 import { createStore } from "redux";
 
-const add = document.getElementById("add");
-// html의 id를 통해 가져옴!
-const minus = document.getElementById("minus");
-const number = document.querySelector("span");
-// html의 클래스 이름 및 태그를 갖고 오기 위해서 querySelector 주로 사용!
+const form = document.querySelector("form");
+const input = document.querySelector("input");
+const ul = document.querySelector("ul");
 
-number.innerText = 0;
+//action
+const ADD_TODO = "ADD_TODO";
+const DELETE_TODO = "DELETE_TODO";
 
-const ADD = "ADD";
-const MINUS = "MINUS";
-//액션을 스트링으로 넣게 되면 오타날 확률 커져서, 액션을 정의해줌 ("ADD" 계속 이렇게 쓸 수는 없잖아!)
+//action creator
+const addToDo = (text) => {
+  return {
+    type: ADD_TODO,
+    text,
+  };
+};
+const deleteToDo = (id) => {
+  return {
+    type: DELETE_TODO,
+    id,
+  };
+};
 
 //reducer
-// const reducer = () => {};
-// reducer라는 함수를 만들어줌 createStore에 주기 위해!
-// reducer는 data를 바꾸고 수정하는 것을 책임짐.
-// 유일하게 데이터를 바꿀 수 있는 곳!!
-//application의 data를 수정하고 싶으면 modifier를 만들고 state를 인자로 주고 ...modify state return state;
-const countModifier = (count = 0, action) => {
-  //여기서 state를 initializing 해줌 (state=0)로, 두번째 파라미터로 action을 줌!(action의 도움을 받아 state를 변경하게 해줌!)
+const reducer = (state = [], action) => {
   switch (action.type) {
-    case ADD:
-      return count + 1;
-    case MINUS:
-      return count - 1;
+    case "ADD_TODO":
+      const newToDoObj = { text: action.text, id: Date.now() };
+      return [newToDoObj, ...state];
+    //   추가할때는 무조건 스프레드 이용해서 이전꺼 넣고, 새로운 애 넣어줌
+    //  삭제하기 위해 id도 추가
+    case "DELETE_TODO":
+      const cleaned = state.filter((toDo) => toDo !== parseInt(action.id));
+      //                삭제할 todo의 id를 가지지 않는 todo, parseInt로 Html에서 받아오는 스트링 id를 숫자로
+      return cleaned;
+
     default:
-      return count;
+      return state;
   }
 };
 
-// const store = createStore(reducer);
-//createStore에 reducer라는 함수를 줘야함!
-const countStore = createStore(countModifier);
+const store = createStore(reducer);
 
-const onChange = () => {
-  number.innerText = countStore.getState();
+store.subscribe(() => {
+  console.log(store.getState());
+});
+const dispatchAddToDo = (text) => {
+  store.dispatch(addToDo(text));
 };
 
-countStore.subscribe(onChange);
-//.subscribe는 변화가 있으면 알려줌!
-
-// countStore.dispatch({ type: "ADD" });
-//store에 dispatch, action을 말하면 => 리덕스는 store에 있는 리듀서를 부르고 => currentState=0, action 일으킴!
-//dispatch를 통해 리듀서로 메시지를 보냄!
-// console.log(countStore.getState());
-//.getState()로 리듀서의 리턴값을 받아옴
-
-const handleAdd = () => {
-  countStore.dispatch({ type: ADD });
-  //                   액션은 타입 property를 이용
+const dispatchDeleteToDo = (e) => {
+  const id = parseInt(e.target.parentNode.id);
+  store.dispatch(deleteToDo(id));
 };
-const handleMinus = () => {
-  countStore.dispatch({ type: MINUS });
+const paintToDos = () => {
+  const toDos = store.getState();
+  ul.innerHTML = "";
+  toDos.forEach((toDo) => {
+    const li = document.createElement("li");
+    const btn = document.createElement("button");
+    btn.innerText = "DEL";
+    btn.addEventListener("click", dispatchDeleteToDo);
+    li.id = toDo.id;
+    li.innerText = toDo.text;
+    li.appendChild(btn);
+    ul.appendChild(li);
+  });
 };
-add.addEventListener("click", handleAdd);
-//이벤트리스너로 클릭했을시 디스패치 통해 스토어에 액션일으킴!
-minus.addEventListener("click", handleMinus);
+store.subscribe(paintToDos);
+
+const onSubmit = (e) => {
+  e.preventDefault();
+  const toDo = input.value;
+  input.value = "";
+  dispatchAddToDo(toDo);
+};
+
+form.addEventListener("submit", onSubmit);
